@@ -1,0 +1,38 @@
+---
+title: "WMS 701 CAT"
+author: "Eric Owino"
+date: "17/05/2021"
+output: pdf_document
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries, include=FALSE, echo=FALSE}
+library(readxl)
+library(readr)
+library(dplyr)
+library(magrittr)
+```
+
+```{r set directory folders, include=FALSE,echo=FALSE}
+projectDirectory <- file.path (dirname(rstudioapi::getActiveDocumentContext()$path))
+
+data_path <- file.path (dirname(dirname(rstudioapi::getActiveDocumentContext()$path)),
+                        "datasets")
+```
+
+(1) The data surg.csv shows results of a study about whether a patient having surgery
+with general anesthesia experienced a sore throat on waking (1 = yes,0 = no) as a
+function of duration of the surgery (in minutes) and type of device used to secure
+the airway (0 = laryngeal mask airway, 1 = tracheal tube). Fit a logistic model
+using these predictors and interpret parameter estimates
+
+```{r quiz 1, include=TRUE, echo=TRUE}
+#read surg.csv
+surg <- read_excel(file.path(data_path,"surg.xls"), 
+                   sheet = "surg")
+```
+
