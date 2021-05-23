@@ -15,6 +15,9 @@ library(readxl)
 library(readr)
 library(dplyr)
 library(magrittr)
+library(huxtable)
+library(broom)
+library(MASS)
 ```
 
 ```{r set directory folders, include=FALSE,echo=FALSE}
@@ -30,9 +33,250 @@ function of duration of the surgery (in minutes) and type of device used to secu
 the airway (0 = laryngeal mask airway, 1 = tracheal tube). Fit a logistic model
 using these predictors and interpret parameter estimates
 
-```{r quiz 1, include=TRUE, echo=TRUE}
+```{r quiz 1, include=FALSE, echo=FALSE}
 #read surg.csv
 surg <- read_excel(file.path(data_path,"surg.xls"), 
                    sheet = "surg")
+
+#convert type to factor
+surg<- surg %>% 
+    dplyr::mutate(type = as.factor(type))
+```
+
+### Description of Data
+```{r check surg, include= FALSE, echo=FALSE}
+summary(surg)
+```
+
+### Soar throat by Type of Equipment used
+```{r tabulate y by type, include=FALSE, echo=FALSE}
+surg_type <- table(surg$y, surg$type)
+
+surg_type
+```
+
+### Effect of Duration of surgery and type of Equipment used
+
+$ln(odds\ of\ y) = \beta_{0} + \beta_{1}duration + \beta_{2}type$
+
+```{r logistic, include=TRUE, echo=FALSE}
+#model logit of sore throat against type of equipment and duration of surgery
+
+quiz1_m1 <- broom::tidy(glm(y ~ duration + type,
+                         data = surg, family = binomial)) %>% 
+            dplyr::mutate( `Odds Ratio` = exp(estimate),
+                           Lower = round(exp(estimate - (1.96 * std.error)),
+                                         digits = 4),
+                           Upper = round(exp(estimate + (1.96 * std.error)),
+                                         digits = 4) ) %>% 
+            dplyr::mutate(term = case_when(
+                term == "type1" ~ "Tracheal tube",
+                term == "duration" ~ "Duration",
+                term == "(Intercept)" ~ "Intercept"
+            ))
+            
+
+#rename cols
+names(quiz1_m1) <- c("Term", "Estimate", 
+                     "Std.Error", "Statistic", 
+                     "P.value", "Odds Ratio", "Lower", "Upper")
+
+ huxtable::as_hux(quiz1_m1) %>% 
+    set_number_format(4) %>% 
+    set_all_padding(4) %>% 
+    set_outer_padding(0) %>% 
+    set_bold(row = 1, col = everywhere) %>% 
+    set_bottom_border(row = 1, col = everywhere) %>% 
+    set_width(1)
+
+
+
+```
+Interpretation:
+After adjusting for the type of device used to secure the airway, a patient is approximately 4% more likely to experience a sore throat on waking, with every additional minute in duration of surgery.
+
+
+(2) The ICU data set icudata.csv consists of a sample of 200 subjects who were part of
+a much larger study on survival of patients following admission to an adult intensive
+care unit (ICU). The major goal of this study was to develop a regression model
+to predict the probability of survival to hospital discharge of these patients and to
+study the risk factors associated with ICU mortality. 
+
+We fit the logistic regression below:
+
+$ln(Odds\ of\ dying) = \beta_{0} + \beta_{1} age + \beta_{2}gender + \beta_{3}race + \beta_{4}type service + \beta_{5}infection + \beta_{6}SBP + \beta_{7}consciousness$
+```{r qiz2, include=FALSE, echo=FALSE}
+#read dataset
+icu <- read_excel(file.path(data_path,"icudata.xls"),sheet = "ICU")
+# we shall fit logistic regression
+
+icu_reg <- broom::tidy(glm(STA ~ AGE + GENDER + RACE + SER +
+                               INF + SYS + LOC, family = binomial,
+                           data = icu)) %>% 
+                dplyr::mutate( `Odds Ratio` = exp(estimate),
+                           Lower = round(exp(estimate - (1.96 * std.error)),
+                                         digits = 4),
+                           Upper = round(exp(estimate + (1.96 * std.error)),
+                                         digits = 4) ) %>% 
+            dplyr::mutate(term = case_when(
+                term == "AGE" ~ "Age",
+                term == "GENDER" ~ "Gender",
+                term == "(Intercept)" ~ "Intercept",
+                term == "SER" ~ "Type of service",
+                term == "INF" ~ "Infection Probable",
+                term == "SYS" ~ "Systolic Blood Pressure",
+                term == "LOC" ~ "Level of Consciousness",
+                term == "RACE" ~ "RACE"
+            ))
+
+
+```
+
+```{r qiz2_, include=TRUE, echo=FALSE}
+    
+names(icu_reg) <- c("Term", "Estimate", 
+                     "Std.Error", "Statistic", 
+                     "P.value", "Odds Ratio", "Lower", "Upper")
+
+ huxtable::as_hux(icu_reg) %>% 
+    set_number_format(4) %>% 
+    #set_all_padding(4) %>% 
+    set_outer_padding(0) %>% 
+    set_bold(row = 1, col = everywhere) %>% 
+    set_bottom_border(row = 1, col = everywhere) %>% 
+    set_width(1) %>% 
+    set_latex_float("h!")
+```
+
+
+From the fitted model above, the only significant risk factors in predicting the probability of survival to hospital discharge are age, type of service and level of consciousness. We shall refit the model with only these risk factor.
+
+$ln(Odds\ of\ dying) = \beta_{0} + \beta_{1} age + \beta_{4}type service  + \beta_{7}consciousness$
+
+```{r include= TRUE, echo= FALSE}
+
+icu_reg1 <- broom::tidy(glm(STA ~ AGE + SER + LOC, family = binomial,
+                           data = icu)) %>% 
+                dplyr::mutate( `Odds Ratio` = exp(estimate),
+                           Lower = round(exp(estimate - (1.96 * std.error)),
+                                         digits = 4),
+                           Upper = round(exp(estimate + (1.96 * std.error)),
+                                         digits = 4) ) %>% 
+            dplyr::mutate(term = case_when(
+                term == "AGE" ~ "Age",
+                term == "(Intercept)" ~ "Intercept",
+                term == "SER" ~ "Type of service",
+                term == "LOC" ~ "Level of Consciousness"
+               
+            ))
+
+names(icu_reg1) <- c("Term", "Estimate", 
+                     "Std.Error", "Statistic", 
+                     "P.value", "Odds Ratio", "Lower", "Upper")
+
+ huxtable::as_hux(icu_reg1) %>% 
+    set_number_format(4) %>% 
+    #set_all_padding(4) %>% 
+    set_outer_padding(0) %>% 
+    set_bold(row = 1, col = everywhere) %>% 
+    set_bottom_border(row = 1, col = everywhere) %>% 
+    set_width(1)
+```
+After adjusting for type of service and level of consciousness, the likelihood of an ICU patient surviving to discharge increases by 96% with every additional age.
+
+
+(3) The data mental.csv comes from a study of mental health for a random sample of
+adult residents of Alachua County, Florida. Mental impairment is ordinal, with categories (well, mild symptom formation, moderate symptom formation, impaired).
+The study related mental impairment to two predictor variables: socioeconomic
+status (ses)(1=high, 0=low) and the life events index (event) which is a composite measure of the number and severity of important life events such as birth of
+child, new job, divorce, or death in family that occurred to the subject within the
+past three years. Fit an ordinal (proportional odds) logistic regression model and
+interpret the results.
+
+
+we shall the models below:
+
+$ln(\frac({Pr(mental <= 0)}{mental > 0})) = \beta_{0} + \beta_{1} ses + \beta_{4}event$
+
+$ln(\frac({Pr(mental <= 1)}{mental > 1})) = \beta_{0} + \beta_{1} ses + \beta_{4}event$
+
+$ln(\frac({Pr(mental <= 2)}{mental > 2})) = \beta_{0} + \beta_{1} ses + \beta_{4}event$
+
+
+
+```{r quiz 3, include = FALSE, echo = FALSE}
+#read in data
+mental <- read_excel(file.path(data_path,"mental.xls"), 
+                   sheet = "mental") %>% 
+    dplyr::mutate(mental = factor(mental, levels = c("0", "1", "2", "3"),
+                                  labels = c("Well", 
+                                             "Mild symptom formation", 
+                                             "Moderate symptom formation",
+                                             "Impaired")))
+
+lapply(mental[, c("mental", "ses", "event")], table)
+
+ftable(xtabs(~ mental + ses + event, data = mental))
+#run ordinal logistics regression
+mental_md <- polr(mental ~ ses + event , Hess = TRUE,  data = mental)
+#store results of coef
+mental_md_coef <- coef(summary(mental_md))
+#compute the p-values
+pvalues <- pnorm(abs(mental_md_coef[, "t value"]), lower.tail = FALSE) * 2
+
+## combined table
+mental_md_tab <- cbind(mental_md_coef, "p value" = pvalues) 
+
+##get the row.names to be column
+term <- as.data.frame(row.names(mental_md_tab))
+names(term) <- "Term"
+#drop row name
+row.names(mental_md_tab) <- NULL
+
+mental_md_tab <- cbind(term, mental_md_tab)
+#get only coef and drop intercepts
+mental_md_coef1 <- dplyr::filter(mental_md_tab, Term %in% c("ses", "event"))
+##compute confidence intervals
+c_interals <- as.data.frame(confint(mental_md))
+
+mental_md_or <- data.frame(cbind(Term = mental_md_coef1$Term ,
+                      exp( cbind( `Odds Ratio` =  mental_md_coef1$Value, 
+                          Lower = c_interals$`2.5 %`, 
+                          Upper = c_interals$`97.5 %`))))
+
+```
+
+```{r quiz 3_a, include = TRUE, echo = FALSE}
+
+ huxtable::as_hux(mental_md_or) %>% 
+    set_number_format(4) %>% 
+    set_all_padding(4) %>% 
+    set_outer_padding(0) %>% 
+    set_bold(row = 1, col = everywhere) %>% 
+    set_bottom_border(row = 1, col = everywhere) %>% 
+    set_width(1)
+```
+Interpretation:
+
+There is insignificant statistical association between mental impairment and social economic status, holding life events constant. 
+
+There is significant statistical association between mental impairment and life events, holding social economic status constant.
+
+Holding social economic status constant,for every unit increase in life events index, an adult residents of Alachua County, Florida is 38% more likely to be categorized as well, as opposed to being mild symptom formation or moderate symptom formation or impaired in a mental impairment study.
+
+Holding social economic status constant,for every unit increase in life events index, an adult residents of Alachua County, Florida is 38% more likely to be categorized as well or as mild symptom formation as opposed to moderate symptom formation or impaired in a mental impairment study.
+
+Holding social economic status constant,for every unit increase in life events index, an adult residents of Alachua County, Florida is 38% more likely to be categorized as well or as mild symptom formation or moderate symptom formation as opposed to impaired in a mental impairment study.
+
+
+(4) The data set serv.csv gives part of data obtained during a 10 year follow up study
+on risk factors associated with death due to cancer for those serving in the military
+in Britain. The number of deaths are recorded per person years for the pair combination of type of service(veteran or non veteran) and age category of the soldiers.
+Are the two factors significantly associated with cancer deaths?
+
+```{r quiz4, include = TRUE, echo = FALSE}
+#read in data
+serv <- read_csv(file.path(data_path,"serv.csv"))
+
 ```
 
